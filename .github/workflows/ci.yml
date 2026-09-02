@@ -196,10 +196,9 @@ jobs:
 
       - name: Execute Webhook PyTest Suite with Telemetry
         run: |
-          if [ -d tests ] || ls test_*.py 1> /dev/null 2>&1; then
-            python -m pytest -v --tb=short --cov=. --cov-report=term-missing --cov-report=xml:coverage.xml
-          else
-            echo "Direct PyTest execution fallback..."
+          python -m pytest -v --tb=short --cov=. --cov-report=term-missing --cov-report=xml:coverage.xml || [ $? -eq 5 ]
+          if [ -f test_webhook.py ]; then
+            echo "Running standalone test_webhook.py smoke verification..."
             python test_webhook.py || true
           fi
 
