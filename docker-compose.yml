@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # Enterprise Database Backend
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=n8n_db_user
+      - POSTGRES_PASSWORD=secure_production_password_123
+      - POSTGRES_DB=n8n_database
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U n8n_db_user -d n8n_database']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - n8n_network
+
+  # ==========================================
+  # Core Automation Engine
+  # ==========================================
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      # Database Connection
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n_database
+      - DB_POSTGRESDB_USER=n8n_db_user
+      - DB_POSTGRESDB_PASSWORD=secure_production_password_123
+      
+      # Core Engine Settings
+      - N8N_ENCRYPTION_KEY=super_secure_encryption_key_for_api_credentials
+      - WEBHOOK_URL=http://localhost:5678/
+      - TZ=Asia/Kolkata # Forces execution logs to Indian Standard Time (IST)
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - n8n_network
+
+volumes:
+  n8n_data:
+  postgres_data:
+
+networks:
+  n8n_network:
+    driver: bridge
+    
