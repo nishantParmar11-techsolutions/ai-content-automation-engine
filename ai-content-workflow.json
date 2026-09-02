@@ -1,0 +1,181 @@
+{
+  "name": "Enterprise AI Content Engine",
+  "nodes": [
+    {
+      "id": "note1",
+      "name": "Sticky Note: Ingestion",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [150, 150],
+      "parameters": {
+        "width": 200,
+        "height": 280,
+        "content": "## Phase 1: Ingestion\nReceives webhook payload containing the topic, target audience, and strict DTC brand guidelines."
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "note2",
+      "name": "Sticky Note: QA Logic",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [700, 150],
+      "parameters": {
+        "width": 350,
+        "height": 280,
+        "content": "## Phase 2: QA & Routing\nForces LLM to output structured JSON. The IF node evaluates the status. \n\n✅ Approvals route to publishing pipeline.\n❌ Rejections route to Slack for human review."
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 300],
+      "parameters": {
+        "path": "generate-content",
+        "httpMethod": "POST",
+        "options": {}
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "draft",
+      "name": "AI Agent: DTC Copywriter",
+      "type": "n8n-nodes-base.openAi",
+      "position": [400, 300],
+      "parameters": {
+        "resource": "chat",
+        "systemMessage": "You are a senior DTC conversion copywriter. Write a high-converting, direct-response draft based on the user's topic. Do not include introductory fluff.",
+        "prompt": "={{ $json.body.topic }}"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "qa",
+      "name": "AI Agent: QA Evaluator",
+      "type": "n8n-nodes-base.openAi",
+      "position": [600, 300],
+      "parameters": {
+        "resource": "chat",
+        "systemMessage": "You are a strict QA Editor. Evaluate the draft for conversion principles. You MUST output your response in raw JSON format like this: {\"status\": \"approved\" or \"rejected\", \"feedback\": \"your edits\"}",
+        "prompt": "={{ $json.message.content }}"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "parse",
+      "name": "Parse JSON Output",
+      "type": "n8n-nodes-base.code",
+      "position": [800, 300],
+      "parameters": {
+        "jsCode": "try {\n  return JSON.parse(item.message.content);\n} catch (error) {\n  return { status: 'rejected', feedback: 'Failed to parse JSON from LLM.' };\n}"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "logic",
+      "name": "Approval Logic (IF)",
+      "type": "n8n-nodes-base.if",
+      "position": [1000, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equal",
+              "value2": "approved"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "slack_success",
+      "name": "Slack: Ready for Publish",
+      "type": "n8n-nodes-base.slack",
+      "position": [1250, 200],
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "text": "✅ *New Content Approved & Ready*\n\n{{ $('AI Agent: DTC Copywriter').item.message.content }}"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "slack_fail",
+      "name": "Slack: Human Review Needed",
+      "type": "n8n-nodes-base.slack",
+      "position": [1250, 400],
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "text": "⚠️ *Content Rejected by QA Agent*\n*Reason:* {{ $json.feedback }}\n\nNeeds human revision before publishing."
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent: DTC Copywriter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: DTC Copywriter": {
+      "main": [
+        [
+          {
+            "node": "AI Agent: QA Evaluator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: QA Evaluator": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON Output": {
+      "main": [
+        [
+          {
+            "node": "Approval Logic (IF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval Logic (IF)": {
+      "main": [
+        [
+          {
+            "node": "Slack: Ready for Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack: Human Review Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
