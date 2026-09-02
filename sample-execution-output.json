@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "engine_version": "3.0.0-enterprise",
+    "execution_id": "exec_uuid_9984_ai_content_prod",
+    "environment": "production",
+    "timestamp": "2026-09-02T14:35:00Z",
+    "total_execution_duration_ms": 3840,
+    "status": "success"
+  },
+  "trigger_payload": {
+    "webhook_path": "/webhook/generate-content",
+    "topic": "Why B2B Tech Startups Are Switching to n8n for Multi-Agent Workflows",
+    "target_audience": "Founders, CTOs, and RevOps Leaders",
+    "optimization_flags": {
+      "strict_qa": true,
+      "auto_publish_channel": "Slack: Ready for Publish"
+    }
+  },
+  "pipeline_execution_steps": {
+    "step_1_copywriter_agent": {
+      "node_name": "AI Agent: DTC Copywriter",
+      "model_used": "claude-3-5-sonnet-20241022",
+      "temperature": 0.3,
+      "status": "completed",
+      "tokens_consumed": {
+        "prompt_tokens": 420,
+        "completion_tokens": 1050,
+        "total_tokens": 1470
+      },
+      "output_word_count": 940
+    },
+    "step_2_qa_evaluator_agent": {
+      "node_name": "AI Agent: QA Evaluator",
+      "model_used": "claude-3-5-sonnet-20241022",
+      "status": "completed",
+      "evaluation_result": {
+        "status": "approved",
+        "confidence_score": 0.99,
+        "feedback": "Draft adheres strictly to direct-response conversion frameworks. Strong hook, compelling value proposition, zero hallucinations detected."
+      }
+    },
+    "step_3_json_parser": {
+      "node_name": "Parse JSON Output",
+      "status": "success",
+      "parsing_method": "try-catch robust block",
+      "error_caught": false
+    },
+    "step_4_conditional_routing": {
+      "node_name": "Approval Logic (IF)",
+      "evaluated_condition": "status == 'approved'",
+      "branch_taken": "true_path"
+    }
+  },
+  "final_dispatch": {
+    "destination": "Slack Webhook API",
+    "channel": "Ready for Publish",
+    "http_status_code": 200,
+    "delivery_timestamp": "2026-09-02T14:35:03.840Z"
+  }
+}
